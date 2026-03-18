@@ -134,7 +134,7 @@ All 16 tests cover:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | `postgresql+asyncpg://jobvault:jobvault@db:5432/jobvault` | PostgreSQL connection string |
-| `SECRET_KEY` | `change-me-in-production` | JWT signing key |
+| `SECRET_KEY` | `change in production` | JWT signing key |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` | Token expiry (24 hours) |
 
 Copy `backend/.env.example` to `backend/.env` and update values for production.
