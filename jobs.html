@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JobVault &mdash; Saved Jobs</title>
+  <link rel="stylesheet" href="jobs.css" />
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <h1>JobVault</h1>
+      <span class="job-count" id="jobCount">0 jobs</span>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" id="darkToggle" title="Toggle dark mode">
+        <span id="darkIcon">&#9790;</span>
+      </button>
+      <button class="icon-btn" id="settingsToggle" title="Settings">&#9881;</button>
+      <div class="btn-group">
+        <button class="btn btn-outline" id="importBtn">Import</button>
+        <button class="btn btn-outline" id="exportBtn">Export CSV</button>
+        <button class="btn btn-outline" id="backupBtn" title="Backup to Chrome Sync">Cloud Backup</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar" id="statsBar"></div>
+
+  <!-- Filters -->
+  <div class="toolbar">
+    <input type="text" id="searchInput" class="search-input" placeholder="Search by title, company, tags, or notes&hellip;" />
+    <select id="statusFilter" class="status-filter">
+      <option value="">All Statuses</option>
+      <option value="Saved">Saved</option>
+      <option value="Applied">Applied</option>
+      <option value="Interview">Interview</option>
+      <option value="Offer">Offer</option>
+      <option value="Rejected">Rejected</option>
+      <option value="Closed">Closed</option>
+    </select>
+    <select id="tagFilter" class="tag-filter">
+      <option value="">All Tags</option>
+    </select>
+    <div class="view-toggle">
+      <button class="view-btn active" data-view="table" title="Table View">&#9776;</button>
+      <button class="view-btn" data-view="kanban" title="Kanban Board">&#9638;</button>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div id="emptyState" class="empty-state hidden">
+    <p>No jobs found. Start saving jobs from any job posting page!</p>
+  </div>
+
+  <!-- Table View -->
+  <div class="table-wrapper" id="tableWrapper">
+    <table id="jobsTable">
+      <thead>
+        <tr>
+          <th data-sort="title" class="sortable">Job Title <span class="sort-arrow"></span></th>
+          <th data-sort="company" class="sortable">Company <span class="sort-arrow"></span></th>
+          <th data-sort="location" class="sortable">Location <span class="sort-arrow"></span></th>
+          <th data-sort="salary">Salary</th>
+          <th data-sort="status" class="sortable">Status <span class="sort-arrow"></span></th>
+          <th>Tags</th>
+          <th data-sort="dateSaved" class="sortable">Date Saved <span class="sort-arrow"></span></th>
+          <th data-sort="lastUpdated" class="sortable">Last Updated <span class="sort-arrow"></span></th>
+          <th class="th-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="jobsBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Kanban View -->
+  <div class="kanban hidden" id="kanbanView">
+    <div class="kanban-col" data-status="Saved">
+      <div class="kanban-col-header"><span class="status-dot dot-saved"></span> Saved <span class="kanban-count" data-count="Saved">0</span></div>
+      <div class="kanban-cards" data-status="Saved"></div>
+    </div>
+    <div class="kanban-col" data-status="Applied">
+      <div class="kanban-col-header"><span class="status-dot dot-applied"></span> Applied <span class="kanban-count" data-count="Applied">0</span></div>
+      <div class="kanban-cards" data-status="Applied"></div>
+    </div>
+    <div class="kanban-col" data-status="Interview">
+      <div class="kanban-col-header"><span class="status-dot dot-interview"></span> Interview <span class="kanban-count" data-count="Interview">0</span></div>
+      <div class="kanban-cards" data-status="Interview"></div>
+    </div>
+    <div class="kanban-col" data-status="Offer">
+      <div class="kanban-col-header"><span class="status-dot dot-offer"></span> Offer <span class="kanban-count" data-count="Offer">0</span></div>
+      <div class="kanban-cards" data-status="Offer"></div>
+    </div>
+    <div class="kanban-col" data-status="Rejected">
+      <div class="kanban-col-header"><span class="status-dot dot-rejected"></span> Rejected <span class="kanban-count" data-count="Rejected">0</span></div>
+      <div class="kanban-cards" data-status="Rejected"></div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Edit Job</h2>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <form id="editForm" class="modal-body">
+        <input type="hidden" id="editId" />
+        <div class="field">
+          <label for="editTitle">Job Title</label>
+          <input type="text" id="editTitle" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="editCompany">Company</label>
+            <input type="text" id="editCompany" />
+          </div>
+          <div class="field">
+            <label for="editLocation">Location</label>
+            <input type="text" id="editLocation" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="editSalary">Salary</label>
+          <input type="text" id="editSalary" />
+        </div>
+        <div class="field">
+          <label for="editUrl">URL</label>
+          <input type="url" id="editUrl" />
+        </div>
+        <div class="field">
+          <label for="editDescription">Description</label>
+          <textarea id="editDescription" rows="4"></textarea>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="editStatus">Status</label>
+            <select id="editStatus">
+              <option value="Saved">Saved</option>
+              <option value="Applied">Applied</option>
+              <option value="Interview">Interview</option>
+              <option value="Offer">Offer</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="editReminder">Remind Me</label>
+            <input type="date" id="editReminder" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="editTags">Tags (comma separated)</label>
+          <input type="text" id="editTags" placeholder="Remote, Full-time" />
+        </div>
+        <div class="field">
+          <label for="editNotes">Notes</label>
+          <textarea id="editNotes" rows="3"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="editCancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2>Delete Job</h2>
+        <button class="modal-close" id="deleteModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong id="deleteJobName"></strong>?</p>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="deleteCancel">Cancel</button>
+          <button class="btn btn-danger" id="deleteConfirm">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline Modal -->
+  <div id="timelineModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Activity Timeline</h2>
+        <button class="modal-close" id="timelineClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="timelineContent" class="timeline"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="modal-close" id="settingsClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="settingsInterval">Auto-check interval (hours)</label>
+          <select id="settingsInterval">
+            <option value="3">Every 3 hours</option>
+            <option value="6">Every 6 hours</option>
+            <option value="12">Every 12 hours</option>
+            <option value="24">Every 24 hours</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="toggle-label">
+            <input type="checkbox" id="settingsNotifications" checked />
+            <span>Enable notifications</span>
+          </label>
+        </div>
+        <div class="field">
+          <button class="btn btn-primary" id="checkNowBtn" style="width:100%">Check All Jobs Now</button>
+        </div>
+        <div class="field">
+          <button class="btn btn-outline" id="restoreBtn" style="width:100%">Restore from Cloud Backup</button>
+        </div>
+        <div id="settingsMsg" class="toast hidden" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file input for import -->
+  <input type="file" id="importFile" accept=".csv,.json" class="hidden" />
+
+  <script src="jobs.js"></script>
+</body>
+</html>

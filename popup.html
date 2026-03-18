@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JobVault</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>JobVault</h1>
+      <span class="badge">v2.0</span>
+    </div>
+    <p class="subtitle">Save &amp; track job postings</p>
+  </header>
+
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <span>Extracting job data&hellip;</span>
+  </div>
+
+  <div id="error" class="error hidden"></div>
+
+  <form id="jobForm" class="hidden">
+    <div class="field">
+      <label for="title">Job Title</label>
+      <input type="text" id="title" placeholder="e.g. Software Engineer" />
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="company">Company</label>
+        <input type="text" id="company" placeholder="e.g. Google" />
+      </div>
+      <div class="field">
+        <label for="location">Location</label>
+        <input type="text" id="location" placeholder="e.g. New York, NY" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="salary">Salary</label>
+      <input type="text" id="salary" placeholder="e.g. $120k – $150k" />
+    </div>
+
+    <div class="field">
+      <label for="url">URL</label>
+      <input type="url" id="url" readonly />
+    </div>
+
+    <div class="field">
+      <label for="description">Description</label>
+      <textarea id="description" rows="4"></textarea>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="status">Status</label>
+        <select id="status">
+          <option value="Saved">Saved</option>
+          <option value="Applied">Applied</option>
+          <option value="Interview">Interview</option>
+          <option value="Offer">Offer</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="reminderDate">Remind Me</label>
+        <input type="date" id="reminderDate" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Tags</label>
+      <div class="tags-input" id="tagsInput">
+        <div class="tags-list" id="tagsList"></div>
+        <input type="text" id="tagInput" placeholder="Type & press Enter" />
+      </div>
+      <div class="tag-suggestions" id="tagSuggestions">
+        <button type="button" class="tag-sug" data-tag="Remote">Remote</button>
+        <button type="button" class="tag-sug" data-tag="Hybrid">Hybrid</button>
+        <button type="button" class="tag-sug" data-tag="On-site">On-site</button>
+        <button type="button" class="tag-sug" data-tag="Full-time">Full-time</button>
+        <button type="button" class="tag-sug" data-tag="Contract">Contract</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="notes">Notes</label>
+      <textarea id="notes" rows="2" placeholder="Add personal notes&hellip;"></textarea>
+    </div>
+
+    <div class="actions">
+      <button type="submit" id="saveBtn" class="btn btn-primary">Save Job</button>
+      <button type="button" id="viewBtn" class="btn btn-secondary">View Saved Jobs</button>
+    </div>
+
+    <div id="saveMsg" class="toast hidden">Job saved successfully!</div>
+  </form>
+
+  <script src="popup.js"></script>
+</body>
+</html>

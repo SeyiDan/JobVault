@@ -1,0 +1,3 @@
+/* FAB styles are injected via Shadow DOM in fab.js.
+   This file exists only because the manifest references it.
+   Keeping it empty avoids a console warning. */
