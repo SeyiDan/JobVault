@@ -10,3 +10,6 @@ __pycache__/
 test.db
 .pytest_cache/
 pgdata/
+
+# Dev tools
+generate-icons.html
