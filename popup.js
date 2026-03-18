@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const loading = document.getElementById('loading');
   const errorEl = document.getElementById('error');
   const saveMsg = document.getElementById('saveMsg');
+  const authSection = document.getElementById('authSection');
 
   const fields = {
     title: document.getElementById('title'),
@@ -19,6 +20,74 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentTags = [];
   const tagsList = document.getElementById('tagsList');
   const tagInput = document.getElementById('tagInput');
+
+  /* ── Auth State ──────────────────────────────────────── */
+
+  const authToggle = document.getElementById('authToggle');
+  const authForm = document.getElementById('authForm');
+  const authEmail = document.getElementById('authEmail');
+  const authPassword = document.getElementById('authPassword');
+  const authSubmit = document.getElementById('authSubmit');
+  const authSwitch = document.getElementById('authSwitch');
+  const authError = document.getElementById('authError');
+  const authStatus = document.getElementById('authStatus');
+  const logoutBtn = document.getElementById('logoutBtn');
+  let authMode = 'login';
+
+  async function updateAuthUI() {
+    const loggedIn = await API.isAuthenticated();
+    if (loggedIn) {
+      const config = await API.getConfig();
+      authStatus.textContent = 'Synced';
+      authStatus.className = 'auth-badge auth-ok';
+      authForm.classList.add('hidden');
+      logoutBtn.classList.remove('hidden');
+    } else {
+      authStatus.textContent = 'Local only';
+      authStatus.className = 'auth-badge';
+      logoutBtn.classList.add('hidden');
+    }
+  }
+
+  authToggle.addEventListener('click', () => {
+    authForm.classList.toggle('hidden');
+  });
+
+  authSwitch.addEventListener('click', () => {
+    authMode = authMode === 'login' ? 'register' : 'login';
+    authSubmit.textContent = authMode === 'login' ? 'Log In' : 'Sign Up';
+    authSwitch.textContent = authMode === 'login' ? 'Need an account? Sign up' : 'Have an account? Log in';
+    authError.classList.add('hidden');
+  });
+
+  authSubmit.addEventListener('click', async () => {
+    authError.classList.add('hidden');
+    const email = authEmail.value.trim();
+    const password = authPassword.value.trim();
+    if (!email || !password) {
+      authError.textContent = 'Email and password required';
+      authError.classList.remove('hidden');
+      return;
+    }
+    try {
+      if (authMode === 'register') {
+        await API.register(email, password);
+      }
+      await API.login(email, password);
+      authForm.classList.add('hidden');
+      updateAuthUI();
+    } catch (err) {
+      authError.textContent = err.message;
+      authError.classList.remove('hidden');
+    }
+  });
+
+  logoutBtn.addEventListener('click', async () => {
+    await API.logout();
+    updateAuthUI();
+  });
+
+  updateAuthUI();
 
   /* ── Tag Management ────────────────────────────────── */
 
@@ -102,6 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } finally {
     loading.classList.add('hidden');
     form.classList.remove('hidden');
+    authSection.classList.remove('hidden');
   }
 
   /* ── Save handler ──────────────────────────────────── */
@@ -137,6 +207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     errorEl.classList.add('hidden');
 
+    // Always save to local storage
     const { jobs = [] } = await chrome.storage.local.get('jobs');
 
     const existingIndex = jobs.findIndex((j) => j.url === job.url && job.url);
@@ -158,6 +229,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     await chrome.storage.local.set({ jobs });
+
+    // Also sync to API if authenticated
+    const loggedIn = await API.isAuthenticated();
+    if (loggedIn) {
+      try {
+        await API.createJob({
+          title: job.title,
+          company: job.company,
+          location: job.location,
+          salary: job.salary,
+          url: job.url,
+          description: job.description,
+          status: job.status,
+          notes: job.notes,
+          tags: job.tags,
+          reminder_date: job.reminderDate,
+          apply_url: job.applyUrl,
+          timeline: job.timeline,
+        });
+      } catch {
+        // API save failed — local copy is still safe
+      }
+    }
 
     if (job.reminderDate) {
       chrome.runtime.sendMessage({

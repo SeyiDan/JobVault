@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentView = 'table';
   let sortCol = 'dateSaved';
   let sortDir = 'desc';
+  let useAPI = false;
 
   /* ── Dark Mode ─────────────────────────────────────── */
 
@@ -46,11 +47,97 @@ document.addEventListener('DOMContentLoaded', () => {
     await chrome.storage.local.set({ settings });
   });
 
+  /* ── Data Layer — abstracts API vs local storage ──── */
+
+  async function initDataSource() {
+    try {
+      useAPI = await API.isAuthenticated();
+    } catch {
+      useAPI = false;
+    }
+    const syncBadge = document.getElementById('syncBadge');
+    if (syncBadge) {
+      syncBadge.textContent = useAPI ? 'Synced' : 'Local';
+      syncBadge.className = useAPI ? 'sync-badge synced' : 'sync-badge';
+    }
+  }
+
+  async function fetchJobs() {
+    if (useAPI) {
+      try {
+        const jobs = await API.listJobs();
+        return jobs.map(normalizeApiJob);
+      } catch {
+        useAPI = false;
+      }
+    }
+    const { jobs = [] } = await chrome.storage.local.get('jobs');
+    return jobs;
+  }
+
+  async function saveJobUpdate(id, data) {
+    if (useAPI) {
+      try {
+        const apiData = {};
+        if (data.title !== undefined) apiData.title = data.title;
+        if (data.company !== undefined) apiData.company = data.company;
+        if (data.location !== undefined) apiData.location = data.location;
+        if (data.salary !== undefined) apiData.salary = data.salary;
+        if (data.url !== undefined) apiData.url = data.url;
+        if (data.description !== undefined) apiData.description = data.description;
+        if (data.status !== undefined) apiData.status = data.status;
+        if (data.notes !== undefined) apiData.notes = data.notes;
+        if (data.tags !== undefined) apiData.tags = data.tags;
+        if (data.reminder_date !== undefined) apiData.reminder_date = data.reminder_date;
+        await API.updateJob(id, apiData);
+      } catch { /* fall through to local */ }
+    }
+    // Always keep local in sync
+    const idx = allJobs.findIndex((j) => j.id === id);
+    if (idx !== -1) {
+      Object.assign(allJobs[idx], data);
+      allJobs[idx].lastUpdated = new Date().toISOString();
+      await chrome.storage.local.set({ jobs: allJobs });
+    }
+  }
+
+  async function removeJob(id) {
+    if (useAPI) {
+      try {
+        await API.deleteJob(id);
+      } catch { /* fall through to local */ }
+    }
+    allJobs = allJobs.filter((j) => j.id !== id);
+    await chrome.storage.local.set({ jobs: allJobs });
+  }
+
+  function normalizeApiJob(j) {
+    return {
+      id: j.id,
+      title: j.title || '',
+      company: j.company || '',
+      location: j.location || '',
+      salary: j.salary || '',
+      url: j.url || '',
+      description: j.description || '',
+      status: j.status || 'Saved',
+      notes: j.notes || '',
+      tags: j.tags || [],
+      reminderDate: j.reminder_date || null,
+      applyUrl: j.apply_url || '',
+      timeline: j.timeline || [],
+      autoStatus: j.auto_status || 'active',
+      lastChecked: j.last_checked || null,
+      dateSaved: j.date_saved || j.dateSaved || '',
+      lastUpdated: j.last_updated || j.lastUpdated || '',
+    };
+  }
+
   /* ── Load & Render ─────────────────────────────────── */
 
   async function loadJobs() {
-    const { jobs = [] } = await chrome.storage.local.get('jobs');
-    allJobs = jobs;
+    await initDataSource();
+    allJobs = await fetchJobs();
     populateTagFilter();
     renderAll();
   }
@@ -239,6 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const job = allJobs.find((j) => j.id === jobId);
         if (job && job.status !== newStatus) {
           const oldStatus = job.status;
+          await saveJobUpdate(jobId, { status: newStatus });
           job.status = newStatus;
           job.lastUpdated = new Date().toISOString();
           if (!job.timeline) job.timeline = [];
@@ -344,8 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const newStatus = document.getElementById('editStatus').value;
     const now = new Date().toISOString();
 
-    allJobs[idx] = {
-      ...allJobs[idx],
+    const updates = {
       title: document.getElementById('editTitle').value.trim(),
       company: document.getElementById('editCompany').value.trim(),
       location: document.getElementById('editLocation').value.trim(),
@@ -363,6 +450,8 @@ document.addEventListener('DOMContentLoaded', () => {
       lastUpdated: now,
     };
 
+    allJobs[idx] = { ...allJobs[idx], ...updates };
+
     if (!allJobs[idx].timeline) allJobs[idx].timeline = [];
     if (oldStatus !== newStatus) {
       allJobs[idx].timeline.push({
@@ -374,12 +463,26 @@ document.addEventListener('DOMContentLoaded', () => {
       allJobs[idx].timeline.push({ date: now, event: 'Job edited', type: 'manual' });
     }
 
+    await saveJobUpdate(id, {
+      title: updates.title,
+      company: updates.company,
+      location: updates.location,
+      salary: updates.salary,
+      url: updates.url,
+      description: updates.description,
+      status: updates.status,
+      notes: updates.notes,
+      tags: updates.tags,
+      reminder_date: updates.reminderDate,
+    });
+
+    await chrome.storage.local.set({ jobs: allJobs });
+
     const reminder = document.getElementById('editReminder').value;
     if (reminder) {
       chrome.runtime.sendMessage({ action: 'setReminder', jobId: id, date: reminder });
     }
 
-    await chrome.storage.local.set({ jobs: allJobs });
     closeEditModal();
     populateTagFilter();
     renderAll();
@@ -406,8 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('deleteConfirm').addEventListener('click', async () => {
     if (!pendingDeleteId) return;
-    allJobs = allJobs.filter((j) => j.id !== pendingDeleteId);
-    await chrome.storage.local.set({ jobs: allJobs });
+    await removeJob(pendingDeleteId);
     closeDeleteModal();
     populateTagFilter();
     renderAll();
@@ -515,8 +617,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ── CSV Export ────────────────────────────────────── */
 
-  document.getElementById('exportBtn').addEventListener('click', () => {
+  document.getElementById('exportBtn').addEventListener('click', async () => {
     if (allJobs.length === 0) return;
+
+    if (useAPI) {
+      try {
+        const blob = await API.exportCSV();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `jobvault-export-${dateStamp()}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        return;
+      } catch { /* fall through to local export */ }
+    }
+
     const headers = ['Title', 'Company', 'Location', 'Salary', 'Status', 'Tags', 'URL', 'Notes', 'Date Saved', 'Last Updated'];
     const rows = allJobs.map((j) => [
       csvEsc(j.title), csvEsc(j.company), csvEsc(j.location), csvEsc(j.salary),
@@ -536,6 +652,17 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('importFile').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    if (useAPI) {
+      try {
+        const imported = await API.importFile(file);
+        showToast(`Imported ${imported.length} job(s)`);
+        loadJobs();
+        e.target.value = '';
+        return;
+      } catch { /* fall through to local import */ }
+    }
+
     const text = await file.text();
     let imported = [];
 

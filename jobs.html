@@ -11,6 +11,7 @@
     <div class="header-left">
       <h1>JobVault</h1>
       <span class="job-count" id="jobCount">0 jobs</span>
+      <span class="sync-badge" id="syncBadge">Local</span>
     </div>
     <div class="header-right">
       <button class="icon-btn" id="darkToggle" title="Toggle dark mode">
@@ -232,6 +233,7 @@
   <!-- Hidden file input for import -->
   <input type="file" id="importFile" accept=".csv,.json" class="hidden" />
 
+  <script src="api.js"></script>
   <script src="jobs.js"></script>
 </body>
 </html>

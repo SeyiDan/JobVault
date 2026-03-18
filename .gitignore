@@ -2,3 +2,11 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+
+# Backend
+__pycache__/
+*.pyc
+.env
+test.db
+.pytest_cache/
+pgdata/

@@ -22,6 +22,22 @@
 
   <div id="error" class="error hidden"></div>
 
+  <!-- Auth Section -->
+  <div id="authSection" class="auth-section hidden">
+    <div class="auth-bar">
+      <span id="authStatus" class="auth-badge">Local only</span>
+      <button type="button" id="authToggle" class="btn-link">Sync</button>
+      <button type="button" id="logoutBtn" class="btn-link hidden">Logout</button>
+    </div>
+    <div id="authForm" class="auth-form hidden">
+      <input type="email" id="authEmail" placeholder="Email" />
+      <input type="password" id="authPassword" placeholder="Password" />
+      <button type="button" id="authSubmit" class="btn btn-sm">Log In</button>
+      <button type="button" id="authSwitch" class="btn-link">Need an account? Sign up</button>
+      <div id="authError" class="error small hidden"></div>
+    </div>
+  </div>
+
   <form id="jobForm" class="hidden">
     <div class="field">
       <label for="title">Job Title</label>
@@ -99,6 +115,7 @@
     <div id="saveMsg" class="toast hidden">Job saved successfully!</div>
   </form>
 
+  <script src="api.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
