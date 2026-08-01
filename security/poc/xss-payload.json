@@ -1,0 +1,8 @@
+[
+  {
+    "title": "Senior Engineer\" onmouseover=\"document.title='XSS:'+JSON.stringify(Object.keys(localStorage))\" data-x=\"",
+    "company": "Totally Legit Corp",
+    "location": "Remote",
+    "url": "https://example.com/job/1"
+  }
+]

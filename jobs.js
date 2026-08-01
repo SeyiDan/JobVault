@@ -211,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const total = allJobs.length || 1;
 
+    // eslint-disable-next-line no-unsanitized/property -- only app-controlled statuses and numeric counts are interpolated here
     statsBar.innerHTML = `
       <div class="stats-segments">
         ${statuses
@@ -235,6 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ── Table View ────────────────────────────────────── */
 
   function renderTable(filtered) {
+    // eslint-disable-next-line no-unsanitized/property -- every field is passed through esc()/JV.escUrl below
     jobsBody.innerHTML = filtered
       .map(
         (job) => `
@@ -242,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>
           ${
             job.url
-              ? `<a href="${esc(job.url)}" target="_blank" title="${esc(job.title)}">${esc(job.title || '(untitled)')}</a>`
+              ? `<a href="${JV.escUrl(job.url)}" target="_blank" rel="noopener noreferrer" title="${esc(job.title)}">${esc(job.title || '(untitled)')}</a>`
               : esc(job.title || '(untitled)')
           }
           ${job.autoStatus === 'closed' ? '<span class="auto-badge">Closed</span>' : ''}
@@ -278,6 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const cards = filtered.filter((j) => j.status === status);
       countEl.textContent = cards.length;
 
+      // eslint-disable-next-line no-unsanitized/property -- every field is passed through esc() below
       container.innerHTML = cards
         .map(
           (job) => `
@@ -529,6 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (events.length === 0) {
       content.innerHTML = '<p class="muted">No activity recorded yet.</p>';
     } else {
+      // eslint-disable-next-line no-unsanitized/property -- event text is passed through esc() below
       content.innerHTML = events
         .map(
           (ev) => `
@@ -783,11 +787,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  // Delegates to the shared, attribute-safe encoder (escape.js). Kept as a thin
+  // local alias so the many call sites below stay unchanged.
   function esc(str) {
-    if (!str) return '';
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
+    return JV.escHtml(str);
   }
 
   function csvEsc(str) {
