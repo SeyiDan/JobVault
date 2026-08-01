@@ -1,3 +1,10 @@
+import os
+
+# SECRET_KEY has no default in production (CWE-798 fix); Settings() runs at import
+# via app.database -> get_settings(). Supply a test key before importing the app.
+os.environ.setdefault("SECRET_KEY", "test-only-secret-not-a-real-key-0123456789abcdef")
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test.db")
+
 import asyncio
 from typing import AsyncGenerator
 

@@ -10,6 +10,9 @@ __pycache__/
 test.db
 .pytest_cache/
 pgdata/
+.venv/
+venv/
 
 # Dev tools
 generate-icons.html
+reports/

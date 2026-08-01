@@ -48,7 +48,15 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    result = await db.execute(select(User).where(User.id == _uuid.UUID(user_id)))
+    # The subject is attacker-influenced. Parse it at the boundary: a non-UUID sub
+    # used to raise ValueError here -> HTTP 500, an oracle that the token was
+    # otherwise valid (CWE-703).
+    try:
+        subject_id = _uuid.UUID(user_id)
+    except (ValueError, AttributeError, TypeError):
+        raise credentials_exception
+
+    result = await db.execute(select(User).where(User.id == subject_id))
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception

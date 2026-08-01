@@ -21,12 +21,11 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://jobvault:jobvault@db:5432/jobvault
-      SECRET_KEY: change-me-to-a-random-secret
+      # Supplied from the environment, never hardcoded. Refuses to start if unset.
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required; generate with python -c "import secrets; print(secrets.token_urlsafe(48))"}
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./backend:/code
 
 volumes:
   pgdata:
