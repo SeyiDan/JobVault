@@ -46,7 +46,7 @@ jobs:
           sarif_file: reports/semgrep.sarif
           category: semgrep
         continue-on-error: true
-      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: reports-sast
           path: reports/
@@ -77,7 +77,7 @@ jobs:
       - run: |
           mkdir -p reports
           pip-audit -r backend/requirements.txt -f json -o reports/pip-audit.json || true
-      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: reports-deps
           path: reports/
@@ -96,7 +96,7 @@ jobs:
           docker run --rm -v "$PWD:/repo" "$GITLEAKS_IMAGE" \
             detect --source=/repo --config=/repo/.gitleaks.toml --report-format=json \
             --report-path=/repo/reports/gitleaks.json --redact --exit-code=0
-      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: reports-secrets
           path: reports/
@@ -113,7 +113,7 @@ jobs:
             --format json --output /repo/reports/trivy-fs.json || true
           docker run --rm -v "$PWD:/repo" "$TRIVY_IMAGE" \
             config /repo --format json --output /repo/reports/trivy-config.json || true
-      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: reports-container
           path: reports/
