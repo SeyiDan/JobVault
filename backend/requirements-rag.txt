@@ -1,0 +1,18 @@
+# Optional ML dependencies for the real embedding backend.
+#
+# Kept out of requirements.txt on purpose. sentence-transformers pulls in torch,
+# which is several hundred megabytes; putting it in the base file would bloat the
+# API image and slow every CI run, to support a model the request path can run
+# without. The unit tests use EMBEDDING_BACKEND=hashing and never need this file.
+#
+# Install when you want real retrieval quality, or to run the eval harness:
+#     pip install -r requirements-rag.txt
+#
+# The first run downloads all-MiniLM-L6-v2 (about 90 MB) to the local
+# huggingface cache. After that it is offline, local and free: no API key, no
+# per-query cost, and no resume text leaving the machine.
+
+-r requirements.txt
+
+sentence-transformers==3.3.1
+numpy==2.2.1

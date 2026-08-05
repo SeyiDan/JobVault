@@ -1,6 +1,9 @@
 services:
   db:
-    image: postgres:16-alpine
+    # Stock Postgres plus the pgvector extension, needed by the resume retrieval
+    # index (see backend/app/rag/store.py). Same Postgres 16, no separate vector
+    # service to run or pay for.
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: jobvault
       POSTGRES_PASSWORD: jobvault
@@ -23,6 +26,12 @@ services:
       DATABASE_URL: postgresql+asyncpg://jobvault:jobvault@db:5432/jobvault
       # Supplied from the environment, never hardcoded. Refuses to start if unset.
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required; generate with python -c "import secrets; print(secrets.token_urlsafe(48))"}
+      # Embeddings run locally, so the container needs the optional ML extra
+      # (see backend/requirements-rag.txt) for this setting to work.
+      EMBEDDING_BACKEND: ${EMBEDDING_BACKEND:-sentence-transformers}
+      # Optional. Without a key the pipeline degrades to returning the retrieved
+      # passages verbatim, which cannot hallucinate.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
