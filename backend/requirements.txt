@@ -1,13 +1,29 @@
-fastapi
-uvicorn[standard]
-sqlalchemy[asyncio]
-asyncpg
-pydantic[email]
-pydantic-settings
-python-jose[cryptography]
-bcrypt
-python-multipart
-pytest
-pytest-asyncio
-httpx
-aiosqlite
+# Pinned working set. Verified 2026-08-01: `pytest` -> all backend tests pass in
+# a clean venv built from this file. Previously every dependency floated, so a
+# clean install resolved whatever PyPI served that minute and a security scan of
+# the result was not reproducible.
+
+# Web framework
+fastapi==0.141.1
+starlette==1.3.1
+uvicorn[standard]==0.52.0
+python-multipart==0.0.32
+
+# Data validation
+pydantic[email]==2.13.4
+pydantic-settings==2.14.2
+email-validator==2.3.0
+
+# Database
+sqlalchemy[asyncio]==2.0.51
+asyncpg==0.31.0
+aiosqlite==0.22.1
+
+# Auth
+python-jose[cryptography]==3.5.0
+bcrypt==5.0.0
+
+# Test
+pytest==9.1.1
+pytest-asyncio==1.4.0
+httpx==0.28.1

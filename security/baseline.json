@@ -1,0 +1,12 @@
+{
+  "_comment": "Accepted risks the security gate will not fail on. Every entry MUST carry a reason and an expiry date (YYYY-MM-DD); scripts/security_gate.py errors on a missing or expired entry.",
+  "accepted": [
+    {
+      "rule_id": "PYSEC-2026-1325",
+      "package": "ecdsa 0.19.2 (transitive, via python-jose)",
+      "aliases": ["CVE-2024-23342", "GHSA-wj6h-64fc-37mp"],
+      "reason": "Minerva timing attack affects ECDSA signing/keygen/ECDH; signature verification is explicitly unaffected. This backend signs JWTs with HS256 (HMAC via python-jose), so no ecdsa signing path executes and the vulnerable code is unreachable. python-ecdsa ships no fix (fix_versions empty). Revisit if the JWT algorithm changes to an ES* family, or migrate off python-jose to PyJWT.",
+      "expires": "2026-11-01"
+    }
+  ]
+}

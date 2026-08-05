@@ -1,0 +1,132 @@
+name: security
+
+on:
+  push:
+    branches: [main, "security/**"]
+  pull_request:
+  schedule:
+    - cron: "23 6 * * 1"
+
+permissions: read-all
+
+env:
+  SEMGREP_VERSION: "1.97.0"
+  PIP_AUDIT_VERSION: "2.7.3"
+  TRIVY_IMAGE: "aquasec/trivy:0.58.1"
+  GITLEAKS_IMAGE: "ghcr.io/gitleaks/gitleaks:v8.21.2"
+
+jobs:
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        with:
+          python-version: "3.11"
+      - run: pip install "semgrep==${SEMGREP_VERSION}"
+      - name: Run Semgrep
+        run: |
+          mkdir -p reports
+          semgrep scan --metrics=off \
+            --config p/default --config p/security-audit \
+            --config p/secrets --config p/python --config p/javascript \
+            --exclude .venv --exclude node_modules --exclude backend/tests --exclude test \
+            --sarif --output reports/semgrep.sarif || true
+          semgrep scan --metrics=off \
+            --config p/default --config p/security-audit \
+            --config p/secrets --config p/python --config p/javascript \
+            --exclude .venv --exclude node_modules --exclude backend/tests --exclude test \
+            --json --output reports/semgrep.json || true
+      - uses: github/codeql-action/upload-sarif@f09c1c0a94de965c15400f5634aa42fac8fb8f88  # v3.27.5
+        with:
+          sarif_file: reports/semgrep.sarif
+          category: semgrep
+        continue-on-error: true
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        with:
+          name: reports-sast
+          path: reports/
+
+  js:
+    name: Lint + unit (extension JS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af  # v4.1.0
+        with:
+          node-version: "22"
+      - run: node --test test/escape.test.js
+      - name: ESLint (no-unsanitized)
+        run: |
+          npm install --no-save eslint@9 eslint-plugin-no-unsanitized@4
+          npx eslint . || true   # advisory: surfaces raw innerHTML sinks
+
+  deps:
+    name: Dependencies (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        with:
+          python-version: "3.11"
+      - run: pip install "pip-audit==${PIP_AUDIT_VERSION}"
+      - run: |
+          mkdir -p reports
+          pip-audit -r backend/requirements.txt -f json -o reports/pip-audit.json || true
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        with:
+          name: reports-deps
+          path: reports/
+
+  secrets:
+    name: Secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+      - run: |
+          mkdir -p reports
+          # --config is required: without it gitleaks ignores .gitleaks.toml and the
+          # documented placeholder allowlist has no effect.
+          docker run --rm -v "$PWD:/repo" "$GITLEAKS_IMAGE" \
+            detect --source=/repo --config=/repo/.gitleaks.toml --report-format=json \
+            --report-path=/repo/reports/gitleaks.json --redact --exit-code=0
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        with:
+          name: reports-secrets
+          path: reports/
+
+  container:
+    name: Filesystem + config (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - run: |
+          mkdir -p reports
+          docker run --rm -v "$PWD:/repo" "$TRIVY_IMAGE" \
+            fs /repo --scanners vuln,secret --severity HIGH,CRITICAL \
+            --format json --output /repo/reports/trivy-fs.json || true
+          docker run --rm -v "$PWD:/repo" "$TRIVY_IMAGE" \
+            config /repo --format json --output /repo/reports/trivy-config.json || true
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        with:
+          name: reports-container
+          path: reports/
+
+  gate:
+    name: Gate
+    needs: [sast, js, deps, secrets, container]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
+        with:
+          path: reports
+          merge-multiple: true
+      - run: python scripts/security_gate.py --reports reports --baseline security/baseline.json

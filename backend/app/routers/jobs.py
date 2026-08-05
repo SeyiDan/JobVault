@@ -15,6 +15,11 @@ from app.schemas import JobCreate, JobResponse, JobUpdate
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
+# Import limits (CWE-400): reject oversized or malformed uploads before parsing.
+MAX_IMPORT_BYTES = 2 * 1024 * 1024
+MAX_IMPORT_ITEMS = 1000
+ALLOWED_IMPORT_TYPES = {"application/json", "text/csv", "text/plain"}
+
 
 @router.get("", response_model=list[JobResponse])
 async def list_jobs(
@@ -188,7 +193,18 @@ async def import_jobs(
     db: AsyncSession = Depends(get_db),
 ):
     content = await file.read()
-    text = content.decode("utf-8")
+    # Bound the payload: an unbounded read() lets a large upload exhaust memory
+    # (CWE-400). 2 MB is far more than any real export.
+    if len(content) > MAX_IMPORT_BYTES:
+        raise HTTPException(status_code=413, detail="Import file too large")
+    if file.content_type not in ALLOWED_IMPORT_TYPES:
+        raise HTTPException(status_code=415, detail="Unsupported import type")
+
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Import file is not valid UTF-8")
+
     now = datetime.now(timezone.utc)
 
     existing_result = await db.execute(select(Job.url).where(Job.user_id == user.id))
@@ -196,15 +212,26 @@ async def import_jobs(
 
     imported = []
 
-    if file.filename.endswith(".json"):
-        import json
-        data = json.loads(text)
-        items = data if isinstance(data, list) else data.get("jobs", [])
-    else:
-        reader = csv.DictReader(io.StringIO(text))
-        items = list(reader)
+    # Dispatch on the declared content type, not the client-supplied filename.
+    try:
+        if file.content_type == "application/json":
+            import json
+            data = json.loads(text)
+            items = data if isinstance(data, list) else data.get("jobs", [])
+        else:
+            reader = csv.DictReader(io.StringIO(text))
+            items = list(reader)
+    except (ValueError, csv.Error):
+        raise HTTPException(status_code=400, detail="Import file could not be parsed")
+
+    if not isinstance(items, list):
+        raise HTTPException(status_code=400, detail="Import file has an unexpected shape")
+    if len(items) > MAX_IMPORT_ITEMS:
+        raise HTTPException(status_code=413, detail="Too many rows in import file")
 
     for item in items:
+        if not isinstance(item, dict):
+            continue
         url = item.get("url") or item.get("URL") or ""
         if url and url in existing_urls:
             continue

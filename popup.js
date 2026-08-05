@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ── Tag Management ────────────────────────────────── */
 
   function renderTags() {
+    // eslint-disable-next-line no-unsanitized/property -- tag values pass through esc() (JV.escHtml), safe in text and attribute context
     tagsList.innerHTML = currentTags
       .map(
         (tag) =>
@@ -283,10 +284,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     return str.length > max ? str.substring(0, max) + '\u2026' : str;
   }
 
+  // Delegates to the shared, attribute-safe encoder (escape.js).
   function esc(str) {
-    if (!str) return '';
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
+    return JV.escHtml(str);
   }
 });

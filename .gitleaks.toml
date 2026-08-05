@@ -1,0 +1,14 @@
+# gitleaks configuration. Extends the bundled default ruleset.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known non-secret placeholders. Each entry is a documented false positive."
+regexes = [
+  # Example/placeholder keys shipped in .env.example and docs, never live creds.
+  '''your-secret-key-change-in-production''',
+  '''your_password_here''',
+]
+paths = [
+  '''\.env\.example$''',
+]

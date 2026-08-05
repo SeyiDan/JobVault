@@ -119,7 +119,7 @@ pip install -r requirements.txt
 pytest tests/ -v
 ```
 
-All 16 tests cover:
+The suite (24 backend tests: 16 functional + 8 security regressions) covers:
 - User registration and login
 - Duplicate email rejection
 - Wrong password handling
@@ -128,6 +128,17 @@ All 16 tests cover:
 - CSV export
 - Timeline tracking on status changes
 - Unauthenticated access rejection
+- Security regressions (see below)
+
+Extension helpers are unit-tested with `node --test test/escape.test.js`.
+
+## Security
+
+Self-audited for security. See [**SECURITY-AUDIT.md**](./SECURITY-AUDIT.md) for the
+six findings (a stored XSS, a hardcoded signing key, and more), each with a
+proof-of-concept or a regression test, and
+[**.github/workflows/security.yml**](./.github/workflows/security.yml) for the CI
+gate (Semgrep, Trivy, gitleaks, pip-audit, ESLint no-unsanitized).
 
 ## Environment Variables
 
