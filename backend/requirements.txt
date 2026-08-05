@@ -23,7 +23,17 @@ aiosqlite==0.22.1
 python-jose[cryptography]==3.5.0
 bcrypt==5.0.0
 
+# HTTP client. Runtime, not just test: app/rag/generation.py calls the Groq API
+# with it. The test client uses the same pin.
+httpx==0.28.1
+
 # Test
 pytest==9.1.1
 pytest-asyncio==1.4.0
-httpx==0.28.1
+
+# Retrieval-augmented generation
+# pgvector supplies the SQLAlchemy `Vector` column type and the cosine-distance
+# operator. The heavy embedding model is NOT here: sentence-transformers pulls in
+# torch, hundreds of megabytes that the API image and the CI test job have no use
+# for. It lives in requirements-rag.txt. See app/rag/embeddings.py.
+pgvector==0.3.6

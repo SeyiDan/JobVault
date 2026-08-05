@@ -98,6 +98,15 @@ Tables are created automatically on first startup.
 | GET | `/jobs/export/csv` | Download all jobs as CSV |
 | POST | `/jobs/import` | Import jobs from CSV or JSON file |
 
+### Resume retrieval (requires authentication)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/rag/documents` | Index a resume. Chunks it by bullet, embeds each passage, stores the vectors. Re-posting the same `document_name` replaces that document's chunks |
+| POST | `/rag/query` | Retrieve the resume passages most relevant to a job description and generate tailoring suggestions that cite them |
+
+See [Resume retrieval](#resume-retrieval) below for how it works.
+
 ## Supported Job Sites
 
 | Site | Extraction |
@@ -119,7 +128,8 @@ pip install -r requirements.txt
 pytest tests/ -v
 ```
 
-The suite (24 backend tests: 16 functional + 8 security regressions) covers:
+The suite (41 backend tests: 21 functional, 8 security regressions, and 12 for
+the retrieval pipeline) covers:
 - User registration and login
 - Duplicate email rejection
 - Wrong password handling
@@ -129,6 +139,11 @@ The suite (24 backend tests: 16 functional + 8 security regressions) covers:
 - Timeline tracking on status changes
 - Unauthenticated access rejection
 - Security regressions (see below)
+- Resume chunking, embedding, ranking and per-user retrieval isolation
+
+Retrieval tests run with `EMBEDDING_BACKEND=hashing`, a deterministic
+dependency-free embedder, so the suite needs no model download and makes no
+network call. Retrieval *quality* is measured separately by the eval harness.
 
 Extension helpers are unit-tested with `node --test test/escape.test.js`.
 
@@ -140,12 +155,54 @@ proof-of-concept or a regression test, and
 [**.github/workflows/security.yml**](./.github/workflows/security.yml) for the CI
 gate (Semgrep, Trivy, gitleaks, pip-audit, ESLint no-unsanitized).
 
+## Resume retrieval
+
+Given a job description, find the passages of your resume that are actually
+relevant and suggest how to lead with them.
+
+```
+resume text -> chunk by bullet -> embed -> pgvector
+job description -> embed -> nearest passages -> LLM -> cited suggestions
+```
+
+The generation prompt is deliberately restrictive: the model may only rephrase
+and re-emphasise the retrieved passages, may not invent an achievement or adjust
+a number, and must cite the passage each suggestion came from. An invented
+achievement on a resume is something you have to defend in an interview.
+
+**Vector storage.** `document_chunks.embedding` is a real pgvector `vector(384)`
+column on Postgres, so nearest-neighbour search happens in the database. On
+SQLite it degrades to a JSON array and ranks in process, which is what keeps the
+test suite fast and containerless. Both paths rank by cosine similarity over
+unit vectors, so their orderings agree.
+
+**Embeddings run locally** via `all-MiniLM-L6-v2`. No API key, no per-query cost,
+and no resume text leaves the machine. It pulls in torch, so it lives in
+`backend/requirements-rag.txt` rather than the base requirements: the API image
+and the CI job stay small.
+
+```bash
+pip install -r backend/requirements-rag.txt   # optional, for real embeddings
+python eval/run_eval.py --write               # score retrieval quality
+```
+
+`eval/` holds a labeled set of 20 resume passages and 15 job-description queries
+and reports recall@k and MRR against a fixed random baseline. Results are
+committed in [`eval/results.md`](./eval/results.md). Regenerate and commit the
+diff after any change to the chunker, the embedder or the ranking.
+
+Generation uses Groq when `GROQ_API_KEY` is set. Without a key it returns the
+retrieved passages verbatim, which cannot hallucinate.
+
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | `postgresql+asyncpg://jobvault:jobvault@db:5432/jobvault` | PostgreSQL connection string |
-| `SECRET_KEY` | `change in production` | JWT signing key |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` | Token expiry (24 hours) |
+| `SECRET_KEY` | none, required | JWT signing key. The app refuses to start without one, or with a known placeholder, or shorter than 32 characters |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Token expiry. There is no refresh or revocation, so a leaked token is valid until it expires |
+| `EMBEDDING_BACKEND` | `sentence-transformers` | `sentence-transformers` or `hashing`. Never falls back implicitly |
+| `GENERATION_BACKEND` | `groq` | `groq` or `extractive` |
+| `GROQ_API_KEY` | none | Optional. Without it, generation degrades to returning retrieved passages |
 
 Copy `backend/.env.example` to `backend/.env` and update values for production.

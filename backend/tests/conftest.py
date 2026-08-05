@@ -5,6 +5,13 @@ import os
 os.environ.setdefault("SECRET_KEY", "test-only-secret-not-a-real-key-0123456789abcdef")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test.db")
 
+# Deterministic, dependency-free embeddings. The real backend downloads a model
+# and pulls in torch, neither of which belongs in a unit test run. Retrieval
+# QUALITY is measured separately by eval/run_eval.py against the real backend.
+os.environ.setdefault("EMBEDDING_BACKEND", "hashing")
+# No LLM call, so the suite needs no API key and makes no network request.
+os.environ.setdefault("GENERATION_BACKEND", "extractive")
+
 import asyncio
 from typing import AsyncGenerator
 
@@ -16,7 +23,18 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from app.database import Base, get_db
 from app.main import app
 
-TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+from sqlalchemy import text
+
+# Defaults to SQLite so a plain `pytest` needs no database container. Point
+# DATABASE_URL at Postgres to run the same suite against the pgvector search
+# path, which SQLite cannot exercise:
+#
+#   DATABASE_URL=postgresql+asyncpg://... pytest
+#
+# CI runs both. Without the Postgres pass, app/rag/store.py's pgvector branch is
+# the code that only ever runs in production, which is the code most likely to
+# be broken.
+TEST_DATABASE_URL = os.environ["DATABASE_URL"]
 
 engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -40,6 +58,10 @@ def event_loop():
 @pytest_asyncio.fixture(autouse=True)
 async def setup_db():
     async with engine.begin() as conn:
+        # document_chunks.embedding is a pgvector column on Postgres and the type
+        # does not exist until the extension is created. Mirrors the app lifespan.
+        if conn.dialect.name == "postgresql":
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with engine.begin() as conn:

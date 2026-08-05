@@ -1,0 +1,93 @@
+{
+  "_comment": "Labeled retrieval set for eval/run_eval.py. `corpus` is a stand-in resume written in the same shape as a real one: sections of labeled bullets. Each query is a job-description excerpt, and `relevant` lists the chunk_ids a good retriever should surface for it. Labels were assigned by reading each query against each bullet and asking 'would a recruiter reasonably expect this bullet to be offered for this requirement'. They are judgement calls, so the absolute scores matter less than the fact that the same labels are applied to every change.",
+
+  "corpus": [
+    {"id": "ecom-query",   "section": "Enterprise e-Commerce API",      "text": "Query optimization: replaced an N+1 ORM access pattern with parameterized raw SQL across three tables, cutting 1,001 database queries down to 1."},
+    {"id": "ecom-authz",   "section": "Enterprise e-Commerce API",      "text": "Access control: enforced role-based authorization through FastAPI dependency injection so privileged routes cannot be reached by an ordinary account."},
+    {"id": "ecom-tests",   "section": "Enterprise e-Commerce API",      "text": "Testing: grew the pytest suite to 42 tests at 97 percent coverage, including regression tests for every fixed vulnerability."},
+    {"id": "ecom-deps",    "section": "Enterprise e-Commerce API",      "text": "Dependency hygiene: pinned the full dependency set so a clean install is reproducible and a security scan of the result is meaningful."},
+
+    {"id": "sec-privesc",  "section": "Security Audit and CI Hardening", "text": "Privilege escalation: found and fixed a flaw where an anonymous user could self-register as an administrator and read another customer's order history, proven with a four request script."},
+    {"id": "sec-ci",       "section": "Security Audit and CI Hardening", "text": "CI gate: added GitHub Actions running Semgrep, Trivy, gitleaks and pip-audit, failing the build on any high severity finding."},
+    {"id": "sec-threat",   "section": "Security Audit and CI Hardening", "text": "Threat modeling: wrote a STRIDE threat model with a data flow diagram and CVSS vectors, tying each threat to the test that covers it."},
+    {"id": "sec-xss",      "section": "Security Audit and CI Hardening", "text": "Injection defense: fixed a stored cross site scripting flaw caused by an escaping helper that did not escape the double quote character in HTML attributes."},
+
+    {"id": "ml-transfer",  "section": "IoT Intrusion Detection Research", "text": "Transfer learning: evaluated five models across three published IoT datasets and reached 89.1 percent accuracy at a 3.1 percent false positive rate."},
+    {"id": "ml-features",  "section": "IoT Intrusion Detection Research", "text": "Feature engineering: built statistical features and applied principal component analysis over 20,561 network traffic samples."},
+    {"id": "ml-failure",   "section": "IoT Intrusion Detection Research", "text": "Negative result: documented that accuracy collapsed to chance when only four features were shared between source and target datasets."},
+    {"id": "ml-deploy",    "section": "IoT Intrusion Detection Research", "text": "Model deployment: shipped the trained classifier behind a Gradio web application so the model could be exercised interactively."},
+
+    {"id": "llm-planner",  "section": "Momentum AI Planner",            "text": "LLM pipeline: turned onboarding answers into a validated seven day schedule, enforcing a JSON schema and retrying on malformed model output."},
+    {"id": "llm-oauth",    "section": "Momentum AI Planner",            "text": "Calendar sync: integrated Google Calendar over OAuth2 so generated schedules write back to the user's real calendar."},
+    {"id": "llm-nlsql",    "section": "IoT Device Monitor",             "text": "Natural language querying: translated plain English questions into validated SQL against the telemetry store, with injection protection on the generated query."},
+    {"id": "llm-async",    "section": "IoT Device Monitor",             "text": "Async ingestion: built an asynchronous FastAPI ingestion path for device telemetry with containerized deployment."},
+
+    {"id": "collab-ws",    "section": "Collaborative Coding Platform",   "text": "Realtime collaboration: implemented multi cursor synchronization and conflict resolution over WebSocket events."},
+    {"id": "teals-mentor", "section": "Microsoft TEALS",                "text": "Mentoring: taught Python and Java to 25 high school students through weekly code review and debugging workshops."},
+    {"id": "bcbs-sast",    "section": "Blue Cross Blue Shield Arizona",  "text": "Application scanning: ran static and dependency analysis with Veracode against enterprise application dependencies."},
+    {"id": "bcbs-grc",     "section": "Blue Cross Blue Shield Arizona",  "text": "Policy authoring: drafted seven NIST 800-53 security policies and triaged reported phishing campaigns."}
+  ],
+
+  "queries": [
+    {
+      "query": "Backend engineer who can profile slow endpoints and optimize database access patterns and SQL performance at scale.",
+      "relevant": ["ecom-query", "llm-nlsql"]
+    },
+    {
+      "query": "We need someone who writes tests and cares about code quality, coverage and reproducible builds.",
+      "relevant": ["ecom-tests", "ecom-deps"]
+    },
+    {
+      "query": "Application security engineer: secure code review, finding and fixing vulnerabilities like broken access control and XSS.",
+      "relevant": ["sec-privesc", "sec-xss", "ecom-authz", "bcbs-sast"]
+    },
+    {
+      "query": "Security engineer to build automated scanning into our CI pipeline and do threat modeling for new services.",
+      "relevant": ["sec-ci", "sec-threat", "bcbs-sast"]
+    },
+    {
+      "query": "Machine learning engineer with experience training and evaluating models on real datasets and reporting honest metrics.",
+      "relevant": ["ml-transfer", "ml-failure", "ml-features"]
+    },
+    {
+      "query": "Applied scientist comfortable with feature engineering, dimensionality reduction and preparing large sample datasets.",
+      "relevant": ["ml-features", "ml-transfer"]
+    },
+    {
+      "query": "Engineer to put machine learning models into production behind a serving interface users can actually reach.",
+      "relevant": ["ml-deploy", "llm-async"]
+    },
+    {
+      "query": "AI engineer building LLM features: prompting, structured output, schema validation and handling malformed model responses.",
+      "relevant": ["llm-planner", "llm-nlsql"]
+    },
+    {
+      "query": "Build integrations with third party APIs using OAuth and keep user data in sync across services.",
+      "relevant": ["llm-oauth", "llm-async"]
+    },
+    {
+      "query": "Realtime systems engineer: WebSockets, concurrent edits and resolving conflicting state between clients.",
+      "relevant": ["collab-ws"]
+    },
+    {
+      "query": "Authentication and authorization: role based access control, protecting privileged routes and session handling.",
+      "relevant": ["ecom-authz", "sec-privesc"]
+    },
+    {
+      "query": "Governance and compliance work: writing security policy against a control framework and handling reported incidents.",
+      "relevant": ["bcbs-grc", "sec-threat"]
+    },
+    {
+      "query": "Strong communicator who has mentored or taught other engineers.",
+      "relevant": ["teals-mentor"]
+    },
+    {
+      "query": "Someone who can explain a negative result and knows when a model is not working.",
+      "relevant": ["ml-failure"]
+    },
+    {
+      "query": "Python developer building asynchronous REST APIs with FastAPI and containerized deployment.",
+      "relevant": ["llm-async", "ecom-authz", "ecom-query"]
+    }
+  ]
+}
