@@ -12,13 +12,13 @@ os.environ.setdefault("EMBEDDING_BACKEND", "hashing")
 # No LLM call, so the suite needs no API key and makes no network request.
 os.environ.setdefault("GENERATION_BACKEND", "extractive")
 
-import asyncio
 from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.pool import NullPool
 
 from app.database import Base, get_db
 from app.main import app
@@ -36,7 +36,13 @@ from sqlalchemy import text
 # be broken.
 TEST_DATABASE_URL = os.environ["DATABASE_URL"]
 
-engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+# NullPool: do not hold connections open between tests. pytest-asyncio gives each
+# test its own event loop, and an asyncpg connection is bound to the loop that
+# opened it, so a pooled connection reused on the next test's loop raises
+# "attached to a different loop". SQLite happens to tolerate it; Postgres does
+# not. Opening a fresh connection per test costs milliseconds against a local
+# database and removes the whole class of failure.
+engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
 TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -48,11 +54,9 @@ async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
 app.dependency_overrides[get_db] = override_get_db
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+# No custom `event_loop` fixture. Overriding it is deprecated in pytest-asyncio,
+# and a session-scoped loop is what made asyncpg connections outlive the loop
+# that created them. Each test now gets its own loop and its own connection.
 
 
 @pytest_asyncio.fixture(autouse=True)
