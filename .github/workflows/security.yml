@@ -91,8 +91,10 @@ jobs:
           fetch-depth: 0
       - run: |
           mkdir -p reports
+          # --config is required: without it gitleaks ignores .gitleaks.toml and the
+          # documented placeholder allowlist has no effect.
           docker run --rm -v "$PWD:/repo" "$GITLEAKS_IMAGE" \
-            detect --source=/repo --report-format=json \
+            detect --source=/repo --config=/repo/.gitleaks.toml --report-format=json \
             --report-path=/repo/reports/gitleaks.json --redact --exit-code=0
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
         with:
