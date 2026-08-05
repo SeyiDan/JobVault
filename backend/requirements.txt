@@ -36,4 +36,4 @@ pytest-asyncio==1.4.0
 # operator. The heavy embedding model is NOT here: sentence-transformers pulls in
 # torch, hundreds of megabytes that the API image and the CI test job have no use
 # for. It lives in requirements-rag.txt. See app/rag/embeddings.py.
-pgvector==0.3.6
+pgvector==0.5.0
