@@ -1,8 +1,20 @@
 # JobVault
 
-A Chrome extension for saving and tracking job applications, backed by a FastAPI REST API with PostgreSQL.
+A job-application tracker with a **retrieval-augmented generation pipeline** that reads a job
+description and tells you which parts of your resume to lead with. FastAPI and PostgreSQL
+backend, Chrome extension front end.
 
-Extract job details from LinkedIn, Indeed, Greenhouse, Lever, Workday, Glassdoor, and Wellfound with one click. Track application status, set reminders, and sync data across devices through the backend API.
+**The retrieval is measured, not asserted.** Against a labeled set of 15 job-description queries
+over 20 resume passages, it surfaces **81.1% of the relevant passages in the top 5**, against
+23.3% for a random baseline, at an MRR of 0.880 versus 0.207.
+[How it works](#resume-retrieval) · [full results](./eval/results.md)
+
+Generation is constrained to cite the passage every suggestion came from, and may not invent an
+achievement or change a number. An invented achievement is one you have to defend in an interview.
+
+The extension side extracts job details from LinkedIn, Indeed, Greenhouse, Lever, Workday,
+Glassdoor and Wellfound with one click, tracks application status, sets reminders, and syncs
+across devices through the backend API.
 
 ## Tech Stack
 
@@ -186,10 +198,24 @@ pip install -r backend/requirements-rag.txt   # optional, for real embeddings
 python eval/run_eval.py --write               # score retrieval quality
 ```
 
-`eval/` holds a labeled set of 20 resume passages and 15 job-description queries
-and reports recall@k and MRR against a fixed random baseline. Results are
-committed in [`eval/results.md`](./eval/results.md). Regenerate and commit the
-diff after any change to the chunker, the embedder or the ranking.
+**Measured quality.** `eval/` holds a labeled set of 20 resume passages and 15
+job-description queries and reports recall@k and MRR against a fixed random
+baseline, run against the production `sentence-transformers` backend:
+
+| Metric | Retriever | Random baseline |
+|---|---|---|
+| recall@1 | 0.428 | 0.033 |
+| recall@3 | 0.661 | 0.056 |
+| **recall@5** | **0.811** | 0.233 |
+| **MRR** | **0.880** | 0.207 |
+
+The baseline ranks the same corpus in a fixed shuffled order. It is there so the
+retriever's numbers mean something: a recall figure with nothing to compare
+against is not evidence. Twenty passages and fifteen queries is a small set and I
+labeled it myself, so read these as directional rather than as a benchmark.
+
+Per-query results are in [`eval/results.md`](./eval/results.md). Regenerate and
+commit the diff after any change to the chunker, the embedder or the ranking.
 
 Generation uses Groq when `GROQ_API_KEY` is set. Without a key it returns the
 retrieved passages verbatim, which cannot hallucinate.
