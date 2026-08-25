@@ -42,7 +42,9 @@ JobVault/
 │   ├── tests/
 │   │   ├── conftest.py        # Test fixtures (async client, auth helper)
 │   │   ├── test_auth.py       # Auth endpoint tests
-│   │   └── test_jobs.py       # Job CRUD endpoint tests
+│   │   ├── test_jobs.py       # Job CRUD endpoint tests
+│   │   ├── test_rag.py        # Retrieval pipeline, incl. 4 security-marked tests
+│   │   └── test_security.py   # Security regressions (module-level marker)
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── manifest.json               # Chrome extension manifest (MV3)
@@ -66,8 +68,13 @@ JobVault/
 ### Run the Backend
 
 ```bash
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
 docker compose up --build
 ```
+
+`docker-compose.yml` declares `SECRET_KEY` as required, so compose aborts before starting
+anything if it is unset. It reads the **invoking shell** or a `.env` at the repository root;
+`backend/.env` is for running the API directly and compose never looks at it.
 
 This starts:
 - **API** at `http://localhost:8000`
@@ -140,8 +147,9 @@ pip install -r requirements.txt
 pytest tests/ -v
 ```
 
-The suite (41 backend tests: 21 functional, 8 security regressions, and 12 for
-the retrieval pipeline) covers:
+The suite (41 backend tests: 16 functional (5 auth, 11 jobs), 17 for the retrieval
+pipeline, and 8 in the security file; the `security` marker spans 12 of them, since 4 more live
+in the retrieval tests) covers:
 - User registration and login
 - Duplicate email rejection
 - Wrong password handling
@@ -162,8 +170,9 @@ Extension helpers are unit-tested with `node --test test/escape.test.js`.
 ## Security
 
 Self-audited for security. See [**SECURITY-AUDIT.md**](./SECURITY-AUDIT.md) for the
-six findings (a stored XSS, a hardcoded signing key, and more), each with a
-proof-of-concept or a regression test, and
+six findings (a stored XSS, a hardcoded signing key, and more). Four carry a
+proof-of-concept or a regression test; the remaining two are a dependency pin and a shortened
+token lifetime, neither of which has a test asserting it, and
 [**.github/workflows/security.yml**](./.github/workflows/security.yml) for the CI
 gate (Semgrep, Trivy, gitleaks, pip-audit, ESLint no-unsanitized).
 
@@ -188,10 +197,14 @@ SQLite it degrades to a JSON array and ranks in process, which is what keeps the
 test suite fast and containerless. Both paths rank by cosine similarity over
 unit vectors, so their orderings agree.
 
-**Embeddings run locally** via `all-MiniLM-L6-v2`. No API key, no per-query cost,
-and no resume text leaves the machine. It pulls in torch, so it lives in
-`backend/requirements-rag.txt` rather than the base requirements: the API image
-and the CI job stay small.
+**Embeddings run locally** via `all-MiniLM-L6-v2`. No API key, no per-query cost, and no resume
+text leaves the machine. It pulls in torch, so it lives in `backend/requirements-rag.txt` rather
+than the base requirements, which keeps the CI job small.
+
+**The Docker image does not include it.** `backend/Dockerfile` installs only `requirements.txt`,
+while compose defaults `EMBEDDING_BACKEND=sentence-transformers`, and `embeddings.py` raises
+`RuntimeError` when the extra is missing rather than falling back. So retrieval in the container
+needs either `EMBEDDING_BACKEND=hashing` or a Dockerfile that installs the extra.
 
 ```bash
 pip install -r backend/requirements-rag.txt   # optional, for real embeddings
